@@ -54,9 +54,8 @@ native bool GroupHandler_Unassign(int client, char[] groupName);
  */
 forward void GroupHandler_GroupCreated(char[] groupName, GroupId groupId);
 
-public SharedPlugin __pl_MatM =
-{
-	name = "Dynamic Admin Group Handler",
+public SharedPlugin __pl_GroupHandler = {
+	name = "GroupHandler",
 	file = "GroupHandler.smx",
 #if defined REQUIRE_PLUGIN
 	required = 1,
