@@ -1,7 +1,7 @@
 #pragma semicolon 1
 
 //Uncomment for debug messages.
-//#define IN_DEBUG 
+#define IN_DEBUG 
 
 //Used to make sure we don't try to add a group while the player is connected, 
 // when they come back it will auto add the groups needed to them.
@@ -182,6 +182,12 @@ public void checkPlayerGroups(int client) {
     }
     delete groupCacheSnapshot;
     
+    if(groupsToAddTo.Length > 0) {
+        //User belongs to none, we shouldn't create an AdminId for the user.
+        delete groupsToAddTo;
+        return;
+    }
+    
     AdminId adminId = getClientAdminId(client);
     if(adminId == INVALID_ADMIN_ID) {
         LogDebug("Unable to create or find AdminId for user..");
@@ -273,7 +279,11 @@ public bool assignGroup(int client, char[] groupName, bool shouldCreate) {
         tempArrayList = new ArrayList(); //Create an ArrayList since we're adding someone to it!
         groupCache.SetValue(groupName, tempArrayList, true);
     }
-    tempArrayList.Push(GetClientUserId(client));
+    int userId = GetClientUserId(client);
+    if(tempArrayList.FindValue(userId) == -1) {
+        //Only add the player if they are not already in the group.
+        tempArrayList.Push(GetClientUserId(client));
+    }
     return assignGroupId(client, adminId, groupId);
 }
 
@@ -281,12 +291,13 @@ public bool assignGroupId(int client, AdminId adminId, GroupId groupId) {
     if(groupId == INVALID_GROUP_ID || adminId == INVALID_ADMIN_ID) {
         return false;
     }
-    LogDebug("Adding group (%i) to AdminId of: %N", groupId, client);
     // Add group to the player. Ignores the player if they are already apart of the group.
     if(!adminId.InheritGroup(groupId)) {
         // User was already apart of the group,
+        LogDebug("%N was already apart of the groupId: %i", client, groupId);
         return false;
     }
+    LogDebug("%N inherited the groupId: %i", client, groupId);
     return true;
 }
 

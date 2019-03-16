@@ -27,7 +27,6 @@ public Action Command_Assign(int client, int args) {
     return Plugin_Handled;
 }
 
-
 public void GroupHandler_GroupCreated(char[] groupName, GroupId groupId) {
     //Called if the group wasn't found and was created as a temp group
     PrintToChatAll("Group Created: %s", groupName);
