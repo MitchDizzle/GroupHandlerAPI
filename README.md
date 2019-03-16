@@ -22,7 +22,7 @@ public void OnClientPostAdminCheck(int client) {
     }
 }
 
-public void GroupHandler_GroupCreated(char[] groupName, GroupId &groupId) {
+public void GroupHandler_GroupCreated(char[] groupName, GroupId groupId) {
     //Called if the group wasn't found and was created as a temp group
     
     if(StrEqual(groupName, "Cool Group")) {
