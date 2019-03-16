@@ -1,6 +1,7 @@
 #pragma semicolon 1
 
-#define IN_DEBUG
+//Uncomment for debug messages.
+//#define IN_DEBUG 
 
 //Used to make sure we don't try to add a group while the player is connected, 
 // when they come back it will auto add the groups needed to them.
