@@ -14,7 +14,7 @@ StringMap groupCache;
 
 Handle hF_GroupCreated;
 
-#define PLUGIN_VERSION "1.0.3"
+#define PLUGIN_VERSION "1.0.4"
 public Plugin myinfo = {
     name = "Dynamic Admin Group Handler",
     author = "Mitch",
@@ -46,6 +46,11 @@ public void OnPluginStart() {
 public void OnPluginEnd() {
     //Rebuild the admin cache right as we're leaving.
     delete groupCache;
+    DumpAdminCache(AdminCache_Admins, true);
+}
+
+public void OnMapStart() {
+    //Rebuild the admin cache on map start
     DumpAdminCache(AdminCache_Admins, true);
 }
 
@@ -153,7 +158,7 @@ public void checkGroup(char[] groupName) {
             continue;
         }
         client = GetClientOfUserId(userId);
-        if(client > 0 && client <= MaxClients && IsClientConnected(client)) {
+        if(client > 0 && client <= MaxClients && IsClientConnected(client) && IsClientAuthorized(client)) {
             //Assign the GroupId to the player's AdminId.
             LogDebug("Assigning: %N - %s", client, groupName);
             assignGroupId(client, getClientAdminId(client), groupId);
