@@ -3,8 +3,8 @@
 //Uncomment for debug messages.
 #define IN_DEBUG 
 
-//Used to make sure we don't try to add a group while the player is connected, 
-// when they come back it will auto add the groups needed to them.
+//Used to make sure we don't try to add a group while the map is changing, 
+// when the map finishes loading all players will fire the connect events again.
 bool plCanApplyGroups[MAXPLAYERS+1];
 //Stores refrences of player UserIds in this map.
 // "Group A" -> [213, 244, 222]
@@ -14,7 +14,7 @@ StringMap groupCache;
 
 Handle hF_GroupCreated;
 
-#define PLUGIN_VERSION "1.0.0"
+#define PLUGIN_VERSION "1.0.3"
 public Plugin myinfo = {
     name = "Dynamic Admin Group Handler",
     author = "Mitch",
@@ -37,7 +37,7 @@ public void OnPluginStart() {
     //TODO: ConVars, etc.
     HookEvent("player_disconnect", EventPlayerDisconnect, EventHookMode_Pre);
     for(int i = 1; i <= MaxClients; i++) {
-        if(IsClientInGame(i)) {
+        if(IsClientConnected(i) && IsClientAuthorized(i)) {
             plCanApplyGroups[i] = true;
         }
     }
@@ -435,8 +435,8 @@ stock bool NativeCheck_IsClientValid(int client) {
         ThrowNativeError(SP_ERROR_NATIVE, "Client index %i is invalid", client);
         return false;
     }
-    if(!IsClientInGame(client)) {
-        ThrowNativeError(SP_ERROR_NATIVE, "Client %i is not in game", client);
+    if(!IsClientConnected(client)) {
+        ThrowNativeError(SP_ERROR_NATIVE, "Client %i is not connected", client);
         return false;
     }
     return true;
