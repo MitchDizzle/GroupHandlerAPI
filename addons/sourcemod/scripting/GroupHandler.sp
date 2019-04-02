@@ -14,7 +14,7 @@ StringMap groupCache;
 
 Handle hF_GroupCreated;
 
-#define PLUGIN_VERSION "1.0.4"
+#define PLUGIN_VERSION "1.0.5"
 public Plugin myinfo = {
     name = "Dynamic Admin Group Handler",
     author = "Mitch",
@@ -393,8 +393,14 @@ stock bool findOrCreateAdmGroup(char[] groupName, GroupId &groupId, bool shouldC
             LogError("Potential loop case, couldn't find or create '%s'", groupName);
             return false;
         }
+        groupId.AddCommandOverride(groupName, Override_CommandGroup, Command_Allow);
         // Return true, the group was created.
         return true;
+    }
+    OverrideRule overrideRule;
+    if(!groupId.GetCommandOverride(groupName, Override_CommandGroup, overrideRule)) {
+        //Add the group name as an override if it does not exist already.
+        groupId.AddCommandOverride(groupName, Override_CommandGroup, Command_Allow);
     }
     return false;
 }
