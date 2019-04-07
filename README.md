@@ -7,7 +7,7 @@ Right now there's no easy way to tell if a player belongs to a certain group. I'
 
 [More documentation can be found here for the sub plugin GroupAssigner](./GroupAssigner.md)
 
-## GroupHanlder Example:
+## GroupHandler Example:
 
 Essentially all the plugin has to do is:
 
