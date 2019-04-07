@@ -12,7 +12,7 @@ ArrayList profiles;
 KeyValues kvPlayers = null;
 bool ignoreThisSection = false;
 
-#define PLUGIN_VERSION "1.0.0"
+#define PLUGIN_VERSION "1.1.1"
 public Plugin myinfo = {
     name = "Group Assigner",
     author = "Mitch",

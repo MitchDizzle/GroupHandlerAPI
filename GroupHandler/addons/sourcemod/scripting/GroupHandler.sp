@@ -1,7 +1,7 @@
 #pragma semicolon 1
 
 //Uncomment for debug messages.
-#define IN_DEBUG
+//#define IN_DEBUG
 
 ArrayList groupList; //Contains a list of group names, when a new group is assigned it is added here.
 ArrayList groupCache; //Contains a full list of [userId, groupIndex], 
@@ -11,7 +11,7 @@ ArrayList groupCache; //Contains a full list of [userId, groupIndex],
 bool canCacheGroups; 
 
 Handle hF_GroupCreated;
-#define PLUGIN_VERSION "1.1.0"
+#define PLUGIN_VERSION "1.1.1"
 public Plugin myinfo = {
     name = "Dynamic Admin Group Handler",
     author = "Mitch",
