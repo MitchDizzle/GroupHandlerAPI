@@ -7,6 +7,9 @@
 
 /**
  * Registers an Admin Group, or creates a temp one. If a temp one is created this will return True and the plugin can edit the GroupId with default values. The groupId parameter returns the GroupId found if already exists or the temp GroupId.
+ *  Registering an already admin group will add the command override of the groupName value to the group. Allowing you to use CheckCommandAccess native to check if they are in a group.
+ *
+ *  WARNING: There's no real need for you to use this, when using GroupHandler_Assign(int, char, bool) it will auto create the group, you're justing making the GroupHandler plugin save data that possibly isn't used.
  *
  * @param groupName Group Name, must be unique, but doesn't have to be too unique.
  * @param groupId GroupId created or found. You can modify this, but it's probably easier to just use the GroupHandler_GroupCreated forward.
@@ -27,9 +30,11 @@ native bool GroupHandler_Unregister(char[] groupName);
 /**
  * Assigns the player to the group and retains it. Registers the group if needed. If a player is already assigned to a group through other means then this will just ignore the player and not intenerally cache that player.
  *
+ *  There shouldn't be any real reason you wouldn't auto create the group, but it's there if you need it.
+ *
  * @param client Client to add to the group.
  * @param groupName Group to add the client to.
- * @param shouldCreate Should the group be auto registered with the handler? This is for the lazy.
+ * @param shouldCreate Should the group be auto registered with the handler?
  *
  * @return true if the client was internally cached to a group.
  */
@@ -38,6 +43,10 @@ native bool GroupHandler_Assign(int client, char[] groupName, bool shouldCreate 
 /**
  * Removes the player from the API's cache, if they had previously existed in the cache. If you're doing this on a mass amount of players you should use DumpAdminCache(AdminCache_Groups, true). THIS FUNCTION SHOULDN'T BE USED IF THE PLAYER IS ALREADY DISCONNECTING, THAT'D BE A WASTE.
  * This only removes the reference within the handler, does not actually remove the group from the client!
+ *
+ *  WARNING: If using this in a loop of all clients it's better to just use GroupHandler_Unregister(char) instead.
+ *
+ *  There shouldn't be any reason to use this as the map end will rebuild that cache and you'll need to reassign them to the group you want.
  *
  * @param client User who is being unassigned.
  * @param groupName Group Name the user is being removed from.
@@ -53,6 +62,7 @@ native bool GroupHandler_Unassign(int client, char[] groupName);
  * @param groupId GroupId of the just created group for you to edit.
  */
 forward void GroupHandler_GroupCreated(char[] groupName, GroupId groupId);
+
 
 public SharedPlugin __pl_GroupHandler = {
 	name = "GroupHandler",

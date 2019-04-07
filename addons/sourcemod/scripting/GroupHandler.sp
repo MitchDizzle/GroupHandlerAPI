@@ -1,20 +1,17 @@
 #pragma semicolon 1
 
 //Uncomment for debug messages.
-#define IN_DEBUG 
+#define IN_DEBUG
 
-//Used to make sure we don't try to add a group while the map is changing, 
-// when the map finishes loading all players will fire the connect events again.
-bool plCanApplyGroups[MAXPLAYERS+1];
-//Stores refrences of player UserIds in this map.
-// "Group A" -> [213, 244, 222]
-// "Group B" -> [212, 242, 200]
-//player_disconnect event is used to remove these references in order to keep a map to map order.
-StringMap groupCache;
+ArrayList groupList; //Contains a list of group names, when a new group is assigned it is added here.
+ArrayList groupCache; //Contains a full list of [userId, groupIndex], 
+                      // instead of creating multiple ArrayLists for each group registered, which can be a lot after a while.
+// Rebuild cache happens inbetween OnMapEnd and OnMapStart, 
+//  we only want to rebuild the groups only if DumpAdminCache was ran or sm_reloadadmins command was executed.
+bool canCacheGroups; 
 
 Handle hF_GroupCreated;
-
-#define PLUGIN_VERSION "1.0.5"
+#define PLUGIN_VERSION "1.1.0"
 public Plugin myinfo = {
     name = "Dynamic Admin Group Handler",
     author = "Mitch",
@@ -34,229 +31,94 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 }
 
 public void OnPluginStart() {
-    //TODO: ConVars, etc.
-    HookEvent("player_disconnect", EventPlayerDisconnect, EventHookMode_Pre);
-    for(int i = 1; i <= MaxClients; i++) {
-        if(IsClientConnected(i) && IsClientAuthorized(i)) {
-            plCanApplyGroups[i] = true;
-        }
-    }
+    //TODO: What should we put here, this is a developer API..
 }
 
 public void OnPluginEnd() {
     //Rebuild the admin cache right as we're leaving.
-    delete groupCache;
-    DumpAdminCache(AdminCache_Admins, true);
+    DumpAdminCache(AdminCache_Groups, true);
 }
 
 public void OnMapStart() {
-    //Rebuild the admin cache on map start
-    DumpAdminCache(AdminCache_Admins, true);
+    canCacheGroups = true;
 }
-
-public void OnClientDisconnect(int client) {
-    plCanApplyGroups[client] = false;
-}
-
-public void OnClientPostAdminCheck(int client) {
-    //Let's add their groups!
-    plCanApplyGroups[client] = true;
-    checkPlayerGroups(client);
-}
-
-public Action EventPlayerDisconnect(Event event, const char[] name, bool dontBroadcast) {
-    int userId = event.GetInt("userid");
-    int client = GetClientOfUserId(userId);
-    if(client <= 0 || client > MaxClients) {
-        return Plugin_Continue;
-    }
-    //Do we have an easy way to tell if they were in one of our groups?
-    AdminId adminId = getClientAdminId(client, false);
-    if(adminId != INVALID_ADMIN_ID) {
-        //Player has an admin Id, let's find it's groups.
-        if(adminId.GroupCount <= 0) {
-            //Player has no groups, IGNORE PLAYER.
-            return Plugin_Continue;
-        }
-        char groupName[32];
-        GroupId tempGroupId;
-        ArrayList tempArrayList;
-        int tempIndex = -1;
-        for(int i = 0; i < adminId.GroupCount; i++) {
-            tempGroupId = adminId.GetGroup(i, groupName, sizeof(groupName));
-            if(tempGroupId == INVALID_GROUP_ID) {
-                continue;
-            }
-            if(groupCache.GetValue(groupName, tempArrayList)) {
-                //Group was in the cache, let's just remove him from all the groupCache list.
-                if(tempArrayList == null || tempArrayList.Length <= 0) {
-                    //Group was found, but the list is empty or not created.
-                    continue;
-                }
-                tempIndex = tempArrayList.FindValue(userId);
-                if(tempIndex > -1) {
-                    //Remove the UserId from the list.
-                    tempArrayList.Erase(tempIndex);
-                }
-            }
-        }
-    }
-    return Plugin_Continue;
+public void OnMapEnd() {
+    delete groupCache;
+    delete groupList;
+    canCacheGroups = false;
 }
 
 public void OnRebuildAdminCache(AdminCachePart part) {
-    if(part == AdminCache_Admins) {
+    if(part == AdminCache_Admins && canCacheGroups) {
         //Added delay for any other plugin to have it's try.
+        //  Some admin plugins delete the admin user first then recreate it, thanks admin_* plugins :)
         CreateTimer(0.1, Timer_RecacheGroups);
     }
 }
 
 public Action Timer_RecacheGroups(Handle timer) {
-    checkGroups(); 
-    return Plugin_Stop;
-}
-
-public void checkGroups() {
-    if(groupCache == null) {
-        return;
+    if(groupList == null) {
+        return Plugin_Stop;
     }
-    //Iterates the stored groups and makes sure the users saved in them are properly handled.
+    //Iterate over all connected players and add only their groups.
     char groupName[32];
-    StringMapSnapshot groupCacheSnapshot = groupCache.Snapshot();
-    for(int index = 0; index < groupCacheSnapshot.Length; index++) {
-        groupCacheSnapshot.GetKey(index, groupName, sizeof(groupName));
-        LogDebug("Checking status of Group: %s", groupName);
-        checkGroup(groupName);
-    }
-    delete groupCacheSnapshot;
-}
-
-public void checkGroup(char[] groupName) {
-    ArrayList userIdList;
-    if(!groupCache.GetValue(groupName, userIdList)) {
-        LogDebug("Didn't find groupName in cache: %s", groupName);
-        return;
-    }
-    if(userIdList == null || userIdList.Length < 1) {
-        //No ones there, let's escape while we can!
-        LogDebug("No userIds in this list: %s", groupName);
-        return;
-    }
-    //Get the GroupId to add to the cached players.
+    int dataVal[2];
+    int userId = -1;
     GroupId groupId = INVALID_GROUP_ID;
-    getAdmGroup(groupName, groupId, true);
-    if(groupId == INVALID_GROUP_ID) {
-        LogDebug("Unable to create or find group: %s", groupName);
-        return;
+    AdminId adminId = INVALID_ADMIN_ID;
+    GroupId[] tempGroupMap = new GroupId[groupList.Length];
+    for(int i = 0; i < groupCache.Length; i++) {
+        tempGroupMap[i] = INVALID_GROUP_ID;
     }
-    
-    int userId;
-    int client;
-    for(int i = userIdList.Length-1; i >= 0; i--) {
-        userId = userIdList.Get(i);
-        if(userId == -1) {
+    for(int client = 1; client <= MaxClients; client++) {
+        if(!IsClientConnected(client) || !IsClientAuthorized(client)) {
             continue;
         }
-        client = GetClientOfUserId(userId);
-        if(client > 0 && client <= MaxClients && IsClientConnected(client) && IsClientAuthorized(client)) {
-            //Assign the GroupId to the player's AdminId.
-            LogDebug("Assigning: %N - %s", client, groupName);
-            assignGroupId(client, getClientAdminId(client), groupId);
-        } else {
-            //UserId isn't valid, let's cache and remove it later.
-            LogDebug("Removing: %i - %s", userId, groupName);
-            userIdList.Erase(i);
+        adminId = getClientAdminId(client);
+        if(adminId == INVALID_ADMIN_ID) {
+            continue;
+        }
+        userId = GetClientUserId(client);
+        for(int i = 0; i < groupCache.Length; i++) {
+            groupCache.GetArray(i, dataVal, sizeof(dataVal));
+            if(dataVal[0] == userId) {
+                if(tempGroupMap[dataVal[1]] == INVALID_GROUP_ID) {
+                    groupList.GetString(dataVal[1], groupName, sizeof(groupName));
+                    getAdmGroup(groupName, groupId, true);
+                    if(groupId == INVALID_GROUP_ID) {
+                        continue;
+                    }
+                    tempGroupMap[dataVal[1]] = groupId;
+                }
+                assignGroupId(client, adminId, groupId);
+            }
         }
     }
-}
-
-public void checkPlayerGroups(int client) {
-    if(groupCache == null) {
-        return;
-    }
-    GroupId groupId;
-    int userId = GetClientUserId(client);
-    char groupName[32];
-    ArrayList groupsToAddTo = new ArrayList();
-    StringMapSnapshot groupCacheSnapshot = groupCache.Snapshot();
-    for(int index = 0; index < groupCacheSnapshot.Length; index++) {
-        groupCacheSnapshot.GetKey(index, groupName, sizeof(groupName));
-        if(checkPlayerGroup(client, groupName, userId, groupId)) {
-            groupsToAddTo.Push(groupId);
-        }
-    }
-    delete groupCacheSnapshot;
-    
-    if(groupsToAddTo.Length > 0) {
-        //User belongs to none, we shouldn't create an AdminId for the user.
-        delete groupsToAddTo;
-        return;
-    }
-    
-    AdminId adminId = getClientAdminId(client);
-    if(adminId == INVALID_ADMIN_ID) {
-        LogDebug("Unable to create or find AdminId for user..");
-        delete groupsToAddTo;
-        return;
-    }
-    
-    for(int i = 0; i < groupsToAddTo.Length; i++) {
-        groupId = groupsToAddTo.Get(i);
-        if(groupId != INVALID_GROUP_ID) {
-            assignGroupId(client, adminId, groupId);
-        }
-    }
-    delete groupsToAddTo;
-}
-
-public bool checkPlayerGroup(int client, char[] groupName, int userId, GroupId &groupId) {
-    ArrayList userIdList;
-    if(!groupCache.GetValue(groupName, userIdList)) {
-        return false;
-    }
-    if(userIdList == null || userIdList.Length <= 0) {
-        //No ones there, let's escape while we can!
-        return false;
-    }
-    //Get the GroupId to add to the cached players.
-    getAdmGroup(groupName, groupId, true);
-    if(groupId == INVALID_GROUP_ID) {
-        return false;
-    }
-    /*if() {
-        //User is in this group, lets assign them to the admin group again.
-        //assignGroupId(client, adminId, groupId);
-        return true; //Return true if the player exists in this group.
-    }*/
-    return userIdList.FindValue(userId) != -1;
+    return Plugin_Stop;
 }
 
 public bool registerGroup(char[] groupName, GroupId &groupId) {
     //Returns true if the group registered is a temp group, not in admin_groups.cfg
-    if(groupCache == null) {
-        groupCache = new StringMap();
-    }
     bool isTemp = getAdmGroup(groupName, groupId, true);
-    ArrayList tempArrayList;
-    if(!groupCache.GetValue(groupName, tempArrayList)) {
-        groupCache.SetValue(groupName, tempArrayList);
-    }
+    groupListAddGroupName(groupName);
     return isTemp;
 }
 
 public bool unregisterGroup(char[] groupName) {
     // Returns true if the group was unregistered.
-    if(groupCache == null) {
+    if(groupList == null) {
         return true;
     }
-    ArrayList tempArrayList;
-    if(groupCache.GetValue(groupName, tempArrayList)) {
+    int groupIndex = groupList.FindString(groupName);
+    if(groupIndex != -1) {
         //Group Exists, clear the players in the list.
-        if(tempArrayList != null) {
-            tempArrayList.Clear();
+        int tempIndex;
+        while((tempIndex = groupCache.FindValue(groupIndex, 1)) != -1) {
+            groupCache.Erase(tempIndex);
         }
-        delete tempArrayList;
-        return groupCache.Remove(groupName);
+        //Grouplist is append only, removing entries will screw up entire references within groupCache
+        //  Even though it leaves the name within groupList on map change everything is flushed anyways.
+        //groupList.Erase(groupIndex); 
     }
     return true;
 }
@@ -265,7 +127,7 @@ public bool assignGroup(int client, char[] groupName, bool shouldCreate) {
     AdminId adminId = getClientAdminId(client);
     if(adminId == INVALID_ADMIN_ID) {
         //Prevents adding a user to the group cache if they have issues creating an AdminId.
-        LogDebug("%N unable to create adminId.", client);
+        LogDebug("%N unable to create adminId. %s/%i", client, groupName, shouldCreate);
         return false;
     }
     GroupId groupId = INVALID_GROUP_ID;
@@ -274,20 +136,25 @@ public bool assignGroup(int client, char[] groupName, bool shouldCreate) {
         LogDebug("Unable to find or create group: '%s'", groupName);
         return false;
     }
-    if(groupCache == null) {
-        //Make sure the StringMap exists.
-        groupCache = new StringMap();
-    }
-    ArrayList tempArrayList = null;
-    groupCache.GetValue(groupName, tempArrayList);
-    if(tempArrayList == null) {
-        tempArrayList = new ArrayList(); //Create an ArrayList since we're adding someone to it!
-        groupCache.SetValue(groupName, tempArrayList, true);
-    }
+    int groupIndex = groupListAddGroupName(groupName);
     int userId = GetClientUserId(client);
-    if(tempArrayList.FindValue(userId) == -1) {
-        //Only add the player if they are not already in the group.
-        tempArrayList.Push(GetClientUserId(client));
+    int dataVal[2];
+    if(groupCache == null) {
+        groupCache = new ArrayList(2);
+    }
+    for(int i = 0; i <= groupCache.Length; i++) {
+        if(i == groupCache.Length) {
+            //UserId not in list with groupId.
+            dataVal[0] = userId;
+            dataVal[1] = groupIndex;
+            groupCache.PushArray(dataVal, sizeof(dataVal));
+            break;
+        }
+        groupCache.GetArray(i, dataVal, sizeof(dataVal));
+        if(dataVal[0] == userId && dataVal[1] == groupIndex) {
+            //Already exists in group cache.
+            break;
+        }
     }
     return assignGroupId(client, adminId, groupId);
 }
@@ -308,22 +175,27 @@ public bool assignGroupId(int client, AdminId adminId, GroupId groupId) {
 
 public bool unassignGroup(int client, char[] groupName) {
     //Let's just remove the player from the cached list and worry about their admin later.
-    if(groupCache == null) {
+    if(groupList == null) {
         //Nothing to remove from...
         return false;
     }
-    ArrayList tempArrayList = null;
-    if(groupCache.GetValue(groupName, tempArrayList)) {
-        if(tempArrayList != null && tempArrayList.Length > 0) {
-            //Check if the player's userId is in the list and remove it.
-            int userId = GetClientOfUserId(client);
-            int index = tempArrayList.FindValue(userId);
-            if(index != -1) {
-                tempArrayList.Erase(index);
-                return true;
-            }
+    int groupIndex = groupListGetGroupName(groupName);
+    if(groupIndex == -1) {
+        //Can't find groupName cached.
+        return false;
+    }
+    int userId = GetClientUserId(client);
+    int dataVal[2];
+    //Rebuild the array for fear of duplicates.
+    ArrayList tempGroupCache = new ArrayList(2);
+    for(int i = 0; i < groupCache.Length; i++) {
+        groupCache.GetArray(i, dataVal, sizeof(dataVal));
+        if(dataVal[0] != userId || dataVal[1] != groupIndex) {
+            tempGroupCache.PushArray(dataVal, sizeof(dataVal));
         }
     }
+    delete groupCache;
+    groupCache = tempGroupCache;
     return false;
 }
 
@@ -371,6 +243,16 @@ public int Native_Unassign(Handle plugin, int args) {
     return unassignGroup(client, groupName);
 }
 
+//Rebuilds the user's admin instead of relying on DumpAdminCache() native triggering other plugins.
+// One of the main issues this can't be done is that admin.cfg might be adding on a group that is also registered with this plugin.
+public int Native_RebuildUserGroups(Handle plugin, int args) {
+    int client = GetNativeCell(1);
+    if(!NativeCheck_IsClientValid(client)) {
+        return false;
+    }
+    return false;//rebuildUserAdmin(client);
+}
+
 public bool getAdmGroup(char[] groupName, GroupId &groupId, bool shouldCreate) {
     if(findOrCreateAdmGroup(groupName, groupId, shouldCreate)) {
         // void GroupHandler_GroupCreated(char[] groupName, GroupId groupId);
@@ -381,6 +263,24 @@ public bool getAdmGroup(char[] groupName, GroupId &groupId, bool shouldCreate) {
         return true;
     }
     return false;
+}
+
+public int groupListAddGroupName(char[] groupName) {
+    if(groupList == null) {
+        groupList = new ArrayList(ByteCountToCells(32));
+    }
+    int index = groupListGetGroupName(groupName);
+    if(index == -1) {
+        index = groupList.PushString(groupName);
+    }
+    return index;
+}
+
+public int groupListGetGroupName(char[] groupName) {
+    if(groupList == null) {
+        return -1;
+    }
+    return groupList.FindString(groupName);
 }
 
 stock bool findOrCreateAdmGroup(char[] groupName, GroupId &groupId, bool shouldCreate = true) {
@@ -406,10 +306,6 @@ stock bool findOrCreateAdmGroup(char[] groupName, GroupId &groupId, bool shouldC
 }
 
 stock AdminId getClientAdminId(int client, bool create = true) {
-    if(!plCanApplyGroups[client]) {
-        //Prevent happy little accidents of assigned groups during disconnects.
-        return INVALID_ADMIN_ID;
-    }
     char szAuth[128];
     if(!GetClientAuthId(client, AuthId_Engine, szAuth, sizeof(szAuth))) {
         // User's steamId isn't resolving... Bad news.

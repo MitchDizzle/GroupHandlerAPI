@@ -1,3 +1,10 @@
+/**
+
+
+    This plugin is for testing purposes, not needed for core functionality.
+
+
+**/
 #pragma semicolon 1
 
 #include <GroupHandler>
@@ -29,8 +36,8 @@ public Action Command_Assign(int client, int args) {
 
 public void GroupHandler_GroupCreated(char[] groupName, GroupId groupId) {
     //Called if the group wasn't found and was created as a temp group
-    PrintToChatAll("Group Created: %s", groupName);
     if(StrEqual(groupName, testGroupName)) {
+        PrintToServer("Group Created: %s", groupName);
         groupId.SetFlag(Admin_Custom4, true);
     }
 }
