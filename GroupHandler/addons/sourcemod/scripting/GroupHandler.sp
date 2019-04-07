@@ -31,7 +31,7 @@ public APLRes AskPluginLoad2(Handle myself, bool late, char[] error, int err_max
 }
 
 public void OnPluginStart() {
-    //TODO: What should we put here, this is a developer API..
+    CreateConVar("sm_grouphandler_version", PLUGIN_VERSION, "Group Handler API Version", FCVAR_DONTRECORD);
 }
 
 public void OnPluginEnd() {

@@ -19,16 +19,16 @@ Contains the configuration for the GroupAssigner, located in `addons/sourcemod/c
 {
     //Global Roles
     //Special People
-	"STEAM_0:0:XXXXXXXX"    "Mitch,Veteran,Contributor"   //Mitch
+    "STEAM_0:0:XXXXXXXX"    "Mitch,Veteran,Contributor"   //Mitch
     
     //Veterans
-    "STEAM_0:0:YYYYYYYY"	"Respected"   //Person 1
-    "STEAM_0:1:ZZZZZZZZ"	"Respected"   //Person 2
-    "STEAM_0:1:AAAAAAAA"	"Respected"   //Person 3
+    "STEAM_0:0:YYYYYYYY"    "Respected"   //Person 1
+    "STEAM_0:1:ZZZZZZZZ"    "Respected"   //Person 2
+    "STEAM_0:1:AAAAAAAA"    "Respected"   //Person 3
     
     "Server 1"
     { //Server 1 profile specific roles. Appends onto any of the other active profiles and the global one.
-        "STEAM_0:0:YYYYYYYY"	"Contributor"   //Abraham, made several maps for Murder (For free)
+        "STEAM_0:0:YYYYYYYY"    "Contributor"   //Abraham, made several maps for Murder (For free)
     }
     "FF2"
     {

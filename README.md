@@ -3,6 +3,12 @@ Allows plugins to easily assign admin groups to players. Makes creating VIP plug
 
 Right now there's no easy way to tell if a player belongs to a certain group. I'm not sure if this is a feature people would care about to have, since the plugin that uses this should track wether or not they want to add a certain player to a group or not, and not rely on this system for that. Currently in SM removing groups from an admin identity is not possible through their API so a rebuild admin cache (sm_reloadadmins) will be needed to regenerate groups.
 
+# GroupAssigner
+
+[More documentation can be found here for the sub plugin GroupAssigner](./GroupAssigner.md)
+
+## GroupHanlder Example:
+
 Essentially all the plugin has to do is:
 
 ```c++

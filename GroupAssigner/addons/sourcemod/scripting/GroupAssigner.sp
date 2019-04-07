@@ -22,6 +22,7 @@ public Plugin myinfo = {
 };
 
 public void OnPluginStart() {
+    CreateConVar("sm_groupassigner_version", PLUGIN_VERSION, "Group Assigner Version", FCVAR_DONTRECORD);
     cProfile = CreateConVar("sm_groupassigner_profile", "", "Current server profile, for multiple separate with comma");
     AutoExecConfig(true, "GroupAssigner");
 }
