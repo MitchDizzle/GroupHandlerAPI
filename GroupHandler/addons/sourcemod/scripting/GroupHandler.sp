@@ -11,7 +11,7 @@ ArrayList groupCache; //Contains a full list of [userId, groupIndex],
 bool canCacheGroups; 
 
 Handle hF_GroupCreated;
-#define PLUGIN_VERSION "1.1.1"
+#define PLUGIN_VERSION "1.1.2"
 public Plugin myinfo = {
     name = "Dynamic Admin Group Handler",
     author = "Mitch",
@@ -67,7 +67,7 @@ public Action Timer_RecacheGroups(Handle timer) {
     GroupId groupId = INVALID_GROUP_ID;
     AdminId adminId = INVALID_ADMIN_ID;
     GroupId[] tempGroupMap = new GroupId[groupList.Length];
-    for(int i = 0; i < groupCache.Length; i++) {
+    for(int i = 0; i < groupList.Length; i++) {
         tempGroupMap[i] = INVALID_GROUP_ID;
     }
     for(int client = 1; client <= MaxClients; client++) {
